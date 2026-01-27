@@ -212,8 +212,20 @@ var converters = map[fivetransdk.DataType]ConverterFunc{
 				Inner: &fivetransdk.ValueType_Json{Json: CleanStringValue(string(geoJson))},
 			}, nil
 		}
+
+		// Empty strings are not valid JSON per RFC 8259. PlanetScale databases
+		// (MySQL-compatible) allow empty strings in JSON columns, but destinations
+		// like BigQuery reject them with "attempting to parse an empty input" errors.
+		// Convert empty strings to NULL for destination compatibility.
+		jsonString := CleanStringValue(value.ToString())
+		if jsonString == "" {
+			return &fivetransdk.ValueType{
+				Inner: &fivetransdk.ValueType_Null{},
+			}, nil
+		}
+
 		return &fivetransdk.ValueType{
-			Inner: &fivetransdk.ValueType_Json{Json: CleanStringValue(value.ToString())},
+			Inner: &fivetransdk.ValueType_Json{Json: jsonString},
 		}, nil
 	},
 }
